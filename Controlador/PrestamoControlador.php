@@ -140,37 +140,47 @@ class PrestamoControlador {
     
     // Registrar devolución
     public function registrarDevolucion() {
-        // Verificar sesión
-        if (session_status() == PHP_SESSION_NONE) {
+        // Forzar sesión
+        if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-        
-        if(!isset($_SESSION['usuario_id'])) {
+        header('Content-Type: application/json');
+    
+        if (empty($_SESSION['usuario_id'])) {
             echo json_encode(['success' => false, 'message' => 'Sesión no iniciada']);
-            return;
+            exit;
         }
-        
-        if($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $prestamoId = $_POST['prestamo_id'] ?? 0;
-            $fechaDevolucion = $_POST['fecha_devolucion'] ?? date('Y-m-d H:i:s');
-            
-            // Validar fecha de devolución
-            $fechaActual = new DateTime();
-            $fechaActual->modify('-1 day');
-            $fechaDevolucionObj = new DateTime($fechaDevolucion);
-            
-            if($fechaDevolucionObj < $fechaActual) {
-                echo json_encode(['success' => false, 'message' => 'La fecha de devolución no puede ser anterior a ayer']);
-                return;
-            }
-            
-            if($this->prestamo->registrarDevolucion($prestamoId, $fechaDevolucion)) {
-                echo json_encode(['success' => true, 'message' => 'Devolución registrada con éxito']);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Error al registrar la devolución']);
-            }
+    
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método inválido']);
+            exit;
         }
+    
+        // Parámetros
+        $prestamoId       = $_POST['prestamo_id'] ?? 0;
+        $fechaDevolucion  = $_POST['fecha_devolucion'] ?? date('Y-m-d H:i:s');
+    
+        // Validar fecha de devolución
+        $ayer = (new DateTime())->modify('-1 day');
+        $fDev = new DateTime($fechaDevolucion);
+        if ($fDev < $ayer) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'La fecha de devolución no puede ser anterior a ayer'
+            ]);
+            exit;
+        }
+    
+        // Llamada al modelo
+        $ok = $this->prestamo->registrarDevolucion($prestamoId, $fechaDevolucion);
+        if ($ok) {
+            echo json_encode(['success' => true, 'message' => 'Devolución registrada con éxito']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al registrar la devolución']);
+        }
+        exit;
     }
+    
     
     // Obtener ejemplares de un préstamo
     public function obtenerEjemplaresPrestamo() {

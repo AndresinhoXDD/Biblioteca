@@ -8,22 +8,23 @@ class Prestatario {
     // Propiedades
     public $prestatario_id;
     public $prestatario_nombre;
-    public $prestatario_cedula;
+    public $prestatario_identificacion;
     
     public function __construct() {
         $database = new Database();
         $this->conexion = $database->getConexion();
     }
     
-    // Buscar prestatario por cédula
+    // Buscar prestatario por cédula/identificación
     public function buscarPorCedula($cedula) {
-        $consulta = "SELECT prestatario_id FROM " . $this->tabla . " WHERE prestatario_cedula = ?";
+        $consulta = "SELECT prestatario_id 
+                     FROM " . $this->tabla . " 
+                     WHERE prestatario_identificacion = ?";
+
         $stmt = $this->conexion->prepare($consulta);
-        $stmt->bindParam(1, $cedula);
-        $stmt->execute();
+        $stmt->execute([$cedula]);
         
-        if($stmt->rowCount() > 0) {
-            $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
             return $fila['prestatario_id'];
         }
         
@@ -33,11 +34,11 @@ class Prestatario {
     // Crear nuevo prestatario
     public function crear($nombre, $cedula) {
         try {
-            $consulta = "INSERT INTO " . $this->tabla . " (prestatario_nombre, prestatario_cedula) VALUES (?, ?)";
+            $consulta = "INSERT INTO " . $this->tabla . " 
+                         (prestatario_nombre, prestatario_identificacion) 
+                         VALUES (?, ?)";
             $stmt = $this->conexion->prepare($consulta);
-            $stmt->bindParam(1, $nombre);
-            $stmt->bindParam(2, $cedula);
-            $stmt->execute();
+            $stmt->execute([$nombre, $cedula]);
             
             return $this->conexion->lastInsertId();
         } catch(PDOException $e) {
@@ -50,16 +51,12 @@ class Prestatario {
     public function obtenerPorId($id) {
         $consulta = "SELECT * FROM " . $this->tabla . " WHERE prestatario_id = ?";
         $stmt = $this->conexion->prepare($consulta);
-        $stmt->bindParam(1, $id);
-        $stmt->execute();
+        $stmt->execute([$id]);
         
-        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if($fila) {
-            $this->prestatario_id = $fila['prestatario_id'];
-            $this->prestatario_nombre = $fila['prestatario_nombre'];
-            $this->prestatario_cedula = $fila['prestatario_cedula'];
-            
+        if ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $this->prestatario_id            = $fila['prestatario_id'];
+            $this->prestatario_nombre        = $fila['prestatario_nombre'];
+            $this->prestatario_identificacion = $fila['prestatario_identificacion'];
             return true;
         }
         

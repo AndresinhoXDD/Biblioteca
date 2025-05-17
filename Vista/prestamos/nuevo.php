@@ -106,10 +106,59 @@
 </div>
 
 <script>
+    // 👇 FUNCION DE VALIDACIÓN DE FORMULARIO
+    function validarFormulario(formId, reglas) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        const inputs = form.querySelectorAll('input, select, textarea');
+
+        // Al enviar
+        form.addEventListener('submit', function(e) {
+            let valido = true;
+            inputs.forEach(input => {
+                if (!validarCampo(input)) valido = false;
+            });
+            if (!valido) e.preventDefault();
+        });
+
+        // En tiempo real
+        inputs.forEach(input => {
+            ['input','blur'].forEach(evt =>
+                input.addEventListener(evt, () => validarCampo(input))
+            );
+        });
+
+        function validarCampo(input) {
+            const nombre = input.name;
+            const regla  = reglas[nombre];
+            if (!regla) return true;
+
+            const valor = input.value.trim();
+            let valido = true, mensaje = '';
+            const errEl = document.getElementById(`${nombre}-error`);
+
+            if (regla.requerido && valor === '') {
+                valido = false;
+                mensaje = regla.mensajeRequerido;
+            } else if (regla.patron && !regla.patron.test(valor) && valor !== '') {
+                valido = false;
+                mensaje = regla.mensajePatron;
+            }
+
+            if (errEl) {
+                errEl.textContent = mensaje;
+                errEl.style.display = valido ? 'none' : 'block';
+            }
+            input.classList.toggle('is-invalid', !valido);
+            input.classList.toggle('is-valid', valido);
+            return valido;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const ejemplaresSeleccionados = [];
-        
-        // Validación del formulario
+
+        // ✅ Validación del formulario
         validarFormulario('form-prestamo', {
             nombre: {
                 requerido: true,
@@ -126,14 +175,11 @@
                 mensajeRequerido: 'La fecha de préstamo es obligatoria'
             }
         });
-        
-        // Calcular fecha de devolución al cargar la página
+
+        // Resto del JS que ya tenías:
         calcularFechaDevolucion();
-        
-        // Calcular fecha de devolución cuando cambie la fecha de préstamo
+
         document.getElementById('fecha_prestamo').addEventListener('change', calcularFechaDevolucion);
-        
-        // Buscar ejemplares
         document.getElementById('btn-buscar-ejemplar').addEventListener('click', buscarEjemplares);
         document.getElementById('busqueda-ejemplar').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -141,30 +187,25 @@
                 buscarEjemplares();
             }
         });
-        
-        // Enviar formulario
+
         document.getElementById('form-prestamo').addEventListener('submit', function(e) {
             e.preventDefault();
-            
-            // Validar que haya ejemplares seleccionados
+
             if (ejemplaresSeleccionados.length === 0) {
                 document.getElementById('ejemplares-error').textContent = 'Debe seleccionar al menos un ejemplar';
                 document.getElementById('ejemplares-error').style.display = 'block';
                 return;
             }
-            
-            // Preparar datos
+
             const formData = new FormData();
             formData.append('nombre', document.getElementById('nombre').value);
             formData.append('cedula', document.getElementById('cedula').value);
             formData.append('fecha_prestamo', document.getElementById('fecha_prestamo').value);
-            
-            // Agregar ejemplares
+
             ejemplaresSeleccionados.forEach(ejemplar => {
                 formData.append('ejemplares[]', ejemplar.id);
             });
-            
-            // Enviar solicitud
+
             fetch('index.php?accion=registrar_prestamo', {
                 method: 'POST',
                 body: formData
@@ -172,12 +213,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Mostrar mensaje de éxito
                     document.getElementById('mensaje-exito').textContent = data.message;
                     const modal = new bootstrap.Modal(document.getElementById('modal-exito'));
                     modal.show();
                 } else {
-                    // Mostrar errores
                     if (data.errors) {
                         Object.keys(data.errors).forEach(key => {
                             const errorElement = document.getElementById(`${key}-error`);
@@ -196,16 +235,12 @@
                 alert('Error al procesar la solicitud. Intente de nuevo más tarde.');
             });
         });
-        
-        // Función para buscar ejemplares
+
         function buscarEjemplares() {
             const termino = document.getElementById('busqueda-ejemplar').value.trim();
-            
-            if (termino === '') {
-                return;
-            }
-            
-            fetch(`index.php?accion=buscar_ejemplares&titulo=${encodeURIComponent(termino)}`)
+            if (termino === '') return;
+
+            fetch(`index.php?accion=buscar_ejemplares&libro_titulo=${encodeURIComponent(termino)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -219,102 +254,82 @@
                     alert('Error al procesar la solicitud. Intente de nuevo más tarde.');
                 });
         }
-        
-        // Función para mostrar resultados de ejemplares
+
         function mostrarResultadosEjemplares(ejemplares) {
             const tabla = document.getElementById('tabla-ejemplares');
             tabla.innerHTML = '';
-            
+
             if (ejemplares.length === 0) {
                 tabla.innerHTML = '<tr><td colspan="4" class="text-center">No se encontraron ejemplares disponibles</td></tr>';
             } else {
                 ejemplares.forEach(ejemplar => {
                     const fila = document.createElement('tr');
-                    
                     fila.innerHTML = `
-                        <td>${ejemplar.titulo}</td>
-                        <td>${ejemplar.autor}</td>
-                        <td>${ejemplar.isbn}</td>
+                        <td>${ejemplar.libro_titulo}</td>
+                        <td>${ejemplar.autores}</td>
+                        <td>${ejemplar.libro_isbn}</td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-primary btn-agregar-ejemplar" 
-                                    data-id="${ejemplar.ejemplar_id}" 
-                                    data-titulo="${ejemplar.titulo}" 
-                                    data-autor="${ejemplar.autor}" 
-                                    data-isbn="${ejemplar.isbn}">
+                            <button type="button" class="btn btn-sm btn-primary btn-agregar-ejemplar"
+                                data-id="${ejemplar.ejemplar_id}"
+                                data-titulo="${ejemplar.libro_titulo}"
+                                data-autor="${ejemplar.autores}"
+                                data-isbn="${ejemplar.libro_isbn}">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </td>
                     `;
-                    
                     tabla.appendChild(fila);
                 });
-                
-                // Agregar eventos a los botones
+
                 document.querySelectorAll('.btn-agregar-ejemplar').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const id = this.getAttribute('data-id');
                         const titulo = this.getAttribute('data-titulo');
                         const autor = this.getAttribute('data-autor');
                         const isbn = this.getAttribute('data-isbn');
-                        
-                        // Verificar si ya está seleccionado
+
                         if (ejemplaresSeleccionados.some(e => e.id === id)) {
                             alert('Este ejemplar ya está seleccionado');
                             return;
                         }
-                        
-                        // Verificar límite de 3 ejemplares
+
                         if (ejemplaresSeleccionados.length >= 3) {
                             alert('No puede seleccionar más de 3 ejemplares');
                             return;
                         }
-                        
-                        // Agregar a seleccionados
-                        ejemplaresSeleccionados.push({
-                            id: id,
-                            titulo: titulo,
-                            autor: autor,
-                            isbn: isbn
-                        });
-                        
+
+                        ejemplaresSeleccionados.push({ id, titulo, autor, isbn });
                         actualizarEjemplaresSeleccionados();
-                        
-                        // Ocultar error si existe
                         document.getElementById('ejemplares-error').style.display = 'none';
                     });
                 });
             }
-            
+
             document.getElementById('resultados-ejemplares').style.display = 'block';
         }
-        
-        // Función para actualizar la lista de ejemplares seleccionados
+
         function actualizarEjemplaresSeleccionados() {
             const lista = document.getElementById('lista-ejemplares-seleccionados');
             lista.innerHTML = '';
-            
+
             if (ejemplaresSeleccionados.length === 0) {
                 lista.innerHTML = '<li class="list-group-item text-muted">No hay ejemplares seleccionados</li>';
             } else {
                 ejemplaresSeleccionados.forEach((ejemplar, index) => {
                     const item = document.createElement('li');
                     item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    
                     item.innerHTML = `
                         <div>
-                            <strong>${ejemplar.titulo}</strong> - ${ejemplar.autor}
-                            <br>
+                            <strong>${ejemplar.titulo}</strong> - ${ejemplar.autor}<br>
                             <small class="text-muted">ISBN: ${ejemplar.isbn}</small>
                         </div>
                         <button type="button" class="btn btn-sm btn-danger btn-quitar-ejemplar" data-index="${index}">
                             <i class="fas fa-times"></i>
                         </button>
                     `;
-                    
                     lista.appendChild(item);
                 });
-                
-                // Agregar eventos a los botones de quitar
+
                 document.querySelectorAll('.btn-quitar-ejemplar').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const index = parseInt(this.getAttribute('data-index'));
@@ -324,34 +339,25 @@
                 });
             }
         }
-        
-        // Función para calcular fecha de devolución
+
         function calcularFechaDevolucion() {
             const fechaPrestamo = document.getElementById('fecha_prestamo').value;
-            
             if (fechaPrestamo) {
-                // Calcular 3 días hábiles
                 const fecha = new Date(fechaPrestamo);
-                let diasAgregados = 0;
                 let diasHabiles = 0;
-                
+
                 while (diasHabiles < 3) {
                     fecha.setDate(fecha.getDate() + 1);
                     const diaSemana = fecha.getDay();
-                    
-                    // Si no es fin de semana (0=domingo, 6=sábado)
                     if (diaSemana !== 0 && diaSemana !== 6) {
                         diasHabiles++;
                     }
-                    
-                    diasAgregados++;
                 }
-                
-                // Formatear fecha
+
                 const year = fecha.getFullYear();
                 const month = String(fecha.getMonth() + 1).padStart(2, '0');
                 const day = String(fecha.getDate()).padStart(2, '0');
-                
+
                 document.getElementById('fecha_devolucion').value = `${year}-${month}-${day}`;
             }
         }
